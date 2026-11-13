@@ -33,6 +33,13 @@ canvas {
         <input type="range" min="0" max="24" value="0" step = '.001' width = "100" class="slider-input" id="hour-slider">
         <input type="text" id="hour-value" value="0">
     </div>
+    angle
+    <input type="range" min="03.5" max="4.3" value="0" step = '.001' width = "100" class="slider-input" id="angle-slider">
+<input type="range" min="0" max="6.3" value="0" step = '.001' width = "100" class="slider-input" id="angle-slider2">
+        <button type="button" id="today-button">today</button><button type="button" id="eclipse-button">lunar eclipse</button>
+        <button type="button" id="oct-button">oct 28</button>
+    <button type="button" id="north-button">north</button>
+    <button type="button" id="south-button">south</button>
 <h2>OpenGL Matrix Transformation</h2>
 <canvas id="canvas" width="1000" height="500"></canvas>
 
@@ -42,7 +49,23 @@ const daySlider = document.getElementById('day-slider');
 const hourSlider = document.getElementById('hour-slider');
 const hourValue = document.getElementById('hour-value');
 const dayValue = document.getElementById('day-value');
+const angleSlider= document.getElementById('angle-slider');
+const angleSlider2= document.getElementById('angle-slider2');
+const todayButton =  document.getElementById('today-button');
+const eclipseButton =  document.getElementById('eclipse-button');
+const octButton =  document.getElementById('oct-button');
+const northernButton =  document.getElementById('north-button');
+const southernButton =  document.getElementById('south-button');
 
+angleSlider.value = 4.024 
+angleSlider2.value = 0.348
+
+angleSlider.addEventListener('input', () => {
+    updatePoint();
+});
+angleSlider2.addEventListener('input', () => {
+    updatePoint();
+});
 daySlider.addEventListener('input', () => {
     dayValue.value = daySlider.value;
     updatePoint();
@@ -61,6 +84,36 @@ hourValue.addEventListener('input', () => {
     hourSlider.value = hourValue.value;
     updatePoint();
 });
+
+todayButton.addEventListener('click', () => {
+    now = new Date()
+    set_sliders(now.valueOf())
+    update()
+})
+
+eclipseButton.addEventListener('click', () => {
+    now = new Date(2026, 7, 12, 13, 46, 6)//new Date()
+    set_sliders(now.valueOf())
+    update()
+})
+
+octButton.addEventListener('click', () => {
+    now = new Date("Wed, 28 Oct 2026 01:20:00 GMT");
+    set_sliders(now.valueOf())
+    update()
+})
+
+northernButton.addEventListener('click', () => {
+    now = new Date(" 2 Oct 2026 11:37:00 GMT");
+    set_sliders(now.valueOf())
+    update()
+})
+
+southernButton.addEventListener('click', () => {
+    now = new Date("16 Oct 2026 2:45:00 GMT");
+    set_sliders(now.valueOf())
+    update()
+})
 
 const img = new Image();
 img.src = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Equirectangular-projection.jpg";
@@ -86,6 +139,7 @@ async function updatePoint() {
 const cos = Math.cos
 const sin = Math.sin
 const sqrt = Math.sqrt
+const acos = Math.acos
 
 class vec3 {
   constructor(x = 0, y = 0, z = 0) {
@@ -99,6 +153,14 @@ class vec3 {
   }
   mult(a){
     return new vec3(this.x*a, this.y*a, this.z*a)
+  }
+  dot(v){
+    return this.x*v.x + this.y*v.y + this.z*v.z
+  }
+  angle_between(v){
+    var ratio = this.dot(v)/sqrt(this.dot(this)*v.dot(v))
+
+    return acos(ratio)
   }
 }
 
@@ -141,16 +203,6 @@ class quat {
   }
 }
 
-console.log(new quat())
-// q1 = new quat()
-// v1 = new vec3(1,2,3)
-// q1.angle_axis(math.PI/50,1,1,0)
-// // console.log(q1)
-
-// for (var i = 0; i < 100; i+=1){
-//     v1 = q1.rotate(v1)
-//     console.log(v1)
-// }
 
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -161,45 +213,56 @@ function get_moon_pos_rel_earth(selected_date){
     // this day the moon was futhest from ecliptic and at apogee -spelling
     // this time moon should be at 0deg long
     const October27 = new Date("Wed, 28 Oct 2026 01:20:00 GMT");
-    //console.log(October27.toUTCString())
-    ctx.fillText('OCT 27: ' + October27.toString(),10,60 )
 
     time_since_oct27 = selected_date.valueOf() - October27.valueOf()
-    ctx.fillText('ms Since OCT 27: ' + time_since_oct27,10,80 )
-
+    
     // sidereal day 86160000 ms
     days_since = time_since_oct27/(86164000.)
 
     // Sidereal Month 27.322 days
     months_since = time_since_oct27/(27.322*60*60*1000*24)
-    ctx.fillText('"Months" Since OCT 27: ' + months_since,10,100 )
-
+    
     //Moon position in orbit***************************
 
     // could correct speed. about 10% difference max and min speed
     month_angle = months_since * 2. * Math.PI
-    distance_between_foci = 405507 - 363300
-    x = (405507 + 363300)/2*Math.cos(month_angle) + distance_between_foci/2
-    y = 383819*Math.sin(month_angle)
+    moon_v = goal_angle_to_moon(month_angle)
+
+
+
+    /// inclination axis debugging step
+    inclination_axis = new vec3(0,1,0)
+    glup = new quat()
+    glup.angle_axis(angleSlider.value,0,0,1)
+    inclination_axis = glup.rotate(inclination_axis)
+    // end debugging
+
 
     // Ecliptic up 5.15 deg
-    moon_v = new vec3(x,y,0)
     orbit_to_ecliptic = new quat()
-    orbit_to_ecliptic.angle_axis((5.15)*Math.PI/180,0,1,0)
+
+    orbit_to_ecliptic.angle_axis((5.15)*Math.PI/180,inclination_axis)
     moon_v = orbit_to_ecliptic.rotate(moon_v)
 
 
     // INTO EARTH SPACE
 
+    /// inclination axis debugging step
+    inclination_axis = new vec3(0,1,0)
+    glup = new quat()
+    glup.angle_axis(angleSlider2.value,0,0,1)
+    inclination_axis = glup.rotate(inclination_axis)
+    // end debugging
+
     // Starting with polar tilt 23.44 deg
     earth_tilt = new quat()
     a = -23.44*Math.PI/180
-    earth_tilt.angle_axis(a,0,1,0)
+    earth_tilt.angle_axis(a,inclination_axis)
 
     moon_v = earth_tilt.rotate(moon_v)
 
     // Day rotation 1 rot/ sidereal day
-    a = 2*Math.PI*days_since
+    a = 2*Math.PI*days_since-0.03572685558413854
 
     dayrot = new quat()
     dayrot.angle_axis(-a,0,0,1)
@@ -214,25 +277,19 @@ function draw_moon(selected_date){
     draw_obj(moon_v)
 }
 
-function draw_obj(moon_v)
+function draw_obj(moon_v, color = 'grey')
 {
     long = Math.atan2(moon_v.y,moon_v.x)*180/Math.PI
     lat = Math.atan2(moon_v.z,Math.sqrt(moon_v.y*moon_v.y+moon_v.x*moon_v.x))*180/Math.PI
-    ctx.fillText('long lat: ' +  long +','+lat  ,10,220 )
-
-    ctx.fill()
-    ctx.stroke()
-
+    if (color =='grey'){
+        ctx.font = "18px Arial";
+    ctx.fillText('Sublunar long lat: ' +  long +','+lat  ,10,220 )}
+    
     place = [long/180*canvas.height+canvas.width/2,-lat/180*canvas.height+canvas.height/2]
-    //console.log(place)
-
+    console.log('long  ',long*Math.PI/180)
     ctx.beginPath();
     ctx.arc( place[0],place[1], 10, 0, 2 * Math.PI);
-    ctx.fillStyle = 'black'
-    ctx.fill()
-    ctx.beginPath();
-    ctx.arc( place[0],place[1], 10, 0, 2 * Math.PI);
-    ctx.fillStyle = 'grey'
+    ctx.fillStyle = color
     ctx.fill()
     ctx.stroke()
 }
@@ -252,7 +309,28 @@ const goal_angle_to_orbital_pos = (goal_angle) => {
         M = angle - 0.0167086 * Math.sin(angle - Math.PI);
         goal_dif = goal_angle - M;
     }
-    console.log('a b  ', a, b)
+
+    p = new vec3(Math.cos(angle) * a, Math.sin(angle) * b);
+    return f1.subtract(p);
+}
+
+const goal_angle_to_moon = (goal_angle) => {
+    distance_between_foci = 405507 - 363300
+    const f1 = new vec3(-distance_between_foci / 2, 0);
+    const f2 = new vec3(distance_between_foci / 2, 0);
+    let a = 384748;
+    let c = Math.abs(f1.x - f2.x) / 2;
+    let b = Math.sqrt(a * a - c * c);
+    goal_angle += + Math.PI
+    let angle = goal_angle;
+    let M = goal_angle - 0.0549006 * Math.sin(goal_angle - Math.PI);
+    let goal_dif = M - goal_angle;
+
+    for (let n = 0; n < 10; n += 1) {
+        angle += goal_dif;
+        M = angle - 0.0549006 * Math.sin(angle - Math.PI);
+        goal_dif = goal_angle - M;
+    }
 
     p = new vec3(Math.cos(angle) * a, Math.sin(angle) * b);
     return f1.subtract(p);
@@ -260,34 +338,33 @@ const goal_angle_to_orbital_pos = (goal_angle) => {
 
 function get_sun_pos_rel_earth(selected_date)
 {
-    
-    distance_between_foci = 152.10*10**6 - 147.10*10**6
-    x = (152.10*10**6 + 147.10*10**6)/2*Math.cos(month_angle) - distance_between_foci/2
-    y = 149.577*10**6*Math.sin(month_angle)
 
     const midnight_jan1 = new Date("1 Jan 2026 00:00:00 GMT");
     const time_since_jan1 = selected_date.valueOf() - midnight_jan1.valueOf()
 
     const years_since_jan1 = time_since_jan1/(60*60*24*365.25*1000)
+    const days_since = time_since_jan1/(86164000.)
 
-    yearangle = years_since_jan1 * 2 * Math.PI
+    // adding 6deg so that periapsis is different than solstice may need to be neg
+    yearangle = years_since_jan1 * 2 * Math.PI+6/180*Math.PI
 
+    //location of earth in radius of earth from my old program
     var PP = goal_angle_to_orbital_pos(yearangle)
-    console.log(PP.mult(6371))
+    // multiply to get km
     sun_v = PP.mult(6371)
 
     // INTO EARTH SPACE
 
     // Starting with polar tilt 23.44 deg
     earth_tilt = new quat()
-    a = -23.44*Math.PI/180
+    a = 23.44*Math.PI/180
     earth_tilt.angle_axis(a,0,1,0)
 
     sun_v = earth_tilt.rotate(sun_v)
 
     // Day rotation 1 rot/ sidereal day
-    a = 2*Math.PI*days_since
-
+    // angle so that sun is directly above on solstice
+    a = 2*Math.PI*days_since-3.049505513327119
     dayrot = new quat()
     dayrot.angle_axis(-a,0,0,1)
     sun_v = dayrot.rotate(sun_v)
@@ -298,15 +375,15 @@ function draw_sun(selected_date){
     
     sun_v = get_sun_pos_rel_earth(selected_date)
 
-    draw_obj(sun_v)
-    console.log(x,y)
+    draw_obj(sun_v, 'yellow')
+    
 }
 
 async function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    ctx.font = "12px Arial";
+    ctx.font = "18px Arial";
     ctx.textAlign = "left"; 
 
     ctx.fillStyle = "white";
@@ -317,28 +394,79 @@ async function update() {
 
     minute = (hourSlider.value - Math.floor(hourSlider.value))*60
     now = new Date()
-    selected_date = new Date(now.getFullYear(), 0, daySlider.value,hourSlider.value,minute);
+    selected_ms = Date.UTC(now.getFullYear(), 0, daySlider.value,hourSlider.value,minute)
+
+    selected_date = new Date(selected_ms)
     thisyear = new Date(2026, 0, 1);
 
-    ctx.fillText('Selected: ' + selected_date.toString(),10,40 )
+    ctx.fillText('Selected: ' + selected_date.toString(),10,100 )
     ctx.fillStyle = 'red'
     ctx.font = "18px Arial";
-    ctx.fillText('UTC: ' + selected_date.getUTCHours()+':'+ selected_date.getUTCMinutes() ,390,40 )
+    //ctx.fillText('UTC: ' + selected_date.getUTCHours()+':'+ selected_date.getUTCMinutes() ,390,40 )
     ctx.fillStyle = 'white'
     ctx.font = "12px Arial";
     
     draw_moon(selected_date)
-    draw_sun(selected_date)
+    draw_sun(selected_date) 
+    
+    selected_date = new Date(2026, 2, 3, 6, 34)
+    sun = get_sun_pos_rel_earth(selected_date)
+    moon = get_moon_pos_rel_earth(selected_date)
+    console.log(selected_date,'  ', sun.angle_between(moon))
+    console.log(selected_date.toUTCString())
+    console.log('angles values  ',angleSlider.value, ' ', angleSlider2.value)
 
-
+   
+    // ctx.fillStyle = 'red'
+    // ctx.font = "12px Arial";
+    // ctx.fillText('UTC: ' + selected_date,'  ', sun.angle_between(moon) ,390,180 )
+    // ctx.fillStyle = 'white'
+    // ctx.font = "12px Arial";
+    // ctx.stroke()
 
 }
+function set_sliders(ms){
+    selected_date = new Date(ms)
+    console.log('date', selected_date.getUTCDay())
 
-dayValue.value = 300
-hourValue.value = 21.34
-daySlider.value = 300
-hourSlider.value = 21.34
-update()
+    day = Math.floor( (ms -  Date.UTC(2026))/(60*60*24*1000))+1;
+    hour =( (ms -  Date.UTC(2026))/(60*60*24*1000)+1 - day)*24
+    dayValue.value = day;
+    daySlider.value = day;
+    hourValue.value = hour;
+    hourSlider.value = hour;
+}
+
+
+updatePoint()
+now = new Date(2026, 8, 28, 0, 13)//new Date()
+
+
+set_sliders(now.valueOf())
+
+lastangle = 0
+
+// for (var day = 0; day < 365; day += 1)
+// {
+//     for (var hour = 0; hour < 24; hour += .1)
+//     {
+//         now = new Date()
+//         selected_ms = Date.UTC(now.getFullYear(), 0, day, hour)
+//         selected_date = new Date(selected_ms)
+//         sun = get_sun_pos_rel_earth(selected_date)
+//         moon = get_moon_pos_rel_earth(selected_date)
+
+//         angle = sun.angle_between(moon)
+
+        
+//         if ((angle)<0.02)
+//         {
+//             console.log(selected_date.toDateString(),'  ', sun.angle_between(moon))
+//         }
+// }}
+
+
+updatePoint()
 </script>
 </body>
 </html>
