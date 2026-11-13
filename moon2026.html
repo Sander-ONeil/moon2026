@@ -73,10 +73,9 @@ async function updatePoint() {
   isProcessing = true;
 
   try {
-    // Your async code goes here
-    console.log('Starting async operation...');
-    const result = await update();// Simulating async operation
-    console.log('Async operation completed.');
+
+    const result = await update();
+
   } catch (error) {
     console.error('An error occurred:', error);
   } finally {
@@ -84,113 +83,148 @@ async function updatePoint() {
   }
 }
 
+const cos = Math.cos
+const sin = Math.sin
+const sqrt = Math.sqrt
+
+class vec3 {
+  constructor(x = 0, y = 0, z = 0) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+  }
+  subtract(v)
+  {
+    return new vec3(this.x-v.x, this.y-v.y, this.z-v.z)
+  }
+  mult(a){
+    return new vec3(this.x*a, this.y*a, this.z*a)
+  }
+}
+
+class quat {
+  constructor(r = 1, i = 0, j = 0, k = 0) {
+    this.r = r;
+    this.i = i;
+    this.j = j;
+    this.k = k;
+  }
+
+  angle_axis(theta = 0, i = 0, j = 0, k = 0) 
+  {
+    this.r = cos(theta/2.)
+    if (typeof i === "number")
+    {
+        var mult = sin(theta/2) / sqrt(i*i + j*j + k*k)
+        this.i = i * mult;
+        this.j = j * mult;
+        this.k = k * mult;
+    }
+    if (typeof i === "object")
+    {
+        var v = i;
+        var mult = sin(theta/2) / sqrt(v.x*v.x + v.y*v.y + v.z*v.z)
+        this.i = v.x * mult;
+        this.j = v.y * mult;
+        this.k = v.z * mult;
+    }
+  }
+
+  rotate(v=new vec3(1,0,0))
+  {
+    var q = this;
+    var x = v.x* (.5-q.j*q.j-q.k*q.k) + v.y * (q.i*q.j - q.k*q.r) + v.z * (q.i*q.k + q.j*q.r);
+    var y = v.x * (q.i*q.j + q.k*q.r) + v.y* (.5-q.i*q.i-q.k*q.k) + v.z * (q.j*q.k - q.i*q.r);
+    var z = v.x * (q.i*q.k - q.j*q.r) + v.y * (q.j*q.k + q.i*q.r) + v.z* (.5-q.i*q.i-q.j*q.j);
+    var newp = new vec3(x*2,y*2,z*2)
+    return newp
+  }
+}
+
+console.log(new quat())
+// q1 = new quat()
+// v1 = new vec3(1,2,3)
+// q1.angle_axis(math.PI/50,1,1,0)
+// // console.log(q1)
+
+// for (var i = 0; i < 100; i+=1){
+//     v1 = q1.rotate(v1)
+//     console.log(v1)
+// }
 
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-const rotationMatrix = (axis, angle) => {
-    const cosA = Math.cos(angle);
-    const sinA = Math.sin(angle);
 
-    switch (axis) {
-        case 0: // X-axis
-            return math.matrix([
-                [1, 0, 0],
-                [0, cosA, sinA],
-                [0, -sinA, cosA]
-            ]);
-        case 1: // Y-axis
-            return math.matrix([
-                [cosA, 0, -sinA],
-                [0, 1, 0],
-                [sinA, 0, cosA]
-            ]);
-        case 2: // Z-axis
-            return math.matrix([
-                [cosA, sinA, 0],
-                [-sinA, cosA, 0],
-                [0, 0, 1]
-            ]);
-        default:
-            throw new Error("Invalid axis. Axis should be 0, 1, or 2.");
-    }
-};
 
-function draw_moon(){
-    now = new Date();
-    minute = (hourSlider.value - Math.floor(hourSlider.value))*60
-
-    selected_date = new Date(now.getFullYear(), 0, daySlider.value,hourSlider.value,minute);
-    thisyear = new Date(2026, 0, 1);
-
-    ctx.fillText('Selected: ' + selected_date.toString(),10,40 )
-    ctx.fillStyle = 'red'
-    ctx.font = "18px Arial";
-    ctx.fillText('UTC: ' + selected_date.getUTCHours()+':'+ selected_date.getUTCMinutes() ,390,40 )
-    ctx.fillStyle = 'white'
-    ctx.font = "12px Arial";
-    const October27 = new Date(2026, 9, 27, 21, 20, 0);
+function get_moon_pos_rel_earth(selected_date){
+    // this day the moon was futhest from ecliptic and at apogee -spelling
+    // this time moon should be at 0deg long
+    const October27 = new Date("Wed, 28 Oct 2026 01:20:00 GMT");
+    //console.log(October27.toUTCString())
     ctx.fillText('OCT 27: ' + October27.toString(),10,60 )
 
     time_since_oct27 = selected_date.valueOf() - October27.valueOf()
     ctx.fillText('ms Since OCT 27: ' + time_since_oct27,10,80 )
 
-    days_since = time_since_oct27/(86160000.)
+    // sidereal day 86160000 ms
+    days_since = time_since_oct27/(86164000.)
+
+    // Sidereal Month 27.322 days
     months_since = time_since_oct27/(27.322*60*60*1000*24)
     ctx.fillText('"Months" Since OCT 27: ' + months_since,10,100 )
 
+    //Moon position in orbit***************************
 
+    // could correct speed. about 10% difference max and min speed
     month_angle = months_since * 2. * Math.PI
-    ctx.fillText('angle: ' +  month_angle%(2 * Math.PI) ,10,120 )
-
     distance_between_foci = 405507 - 363300
     x = (405507 + 363300)/2*Math.cos(month_angle) + distance_between_foci/2
     y = 383819*Math.sin(month_angle)
 
-    ctx.fillText('coordinates: ' +  x.toString()+','+y.toString()  ,10,140 )
+    // Ecliptic up 5.15 deg
+    moon_v = new vec3(x,y,0)
+    orbit_to_ecliptic = new quat()
+    orbit_to_ecliptic.angle_axis((5.15)*Math.PI/180,0,1,0)
+    moon_v = orbit_to_ecliptic.rotate(moon_v)
 
-    moon_orbit_to_ecliptic = (5.15)*Math.PI/180
-    z = x*Math.sin(moon_orbit_to_ecliptic)
-    x = x*Math.cos(moon_orbit_to_ecliptic)
-    
-    ctx.fillText('coordinates: ' +  x.toString()+','+y.toString()+','+z.toString()  ,10,160 )
 
-    // rotate moon around z axis by roughly 6 deg 
-    // as moon is misaligned with solstice/earth tilt
+    // INTO EARTH SPACE
 
-    moon = [x,y,z]
-    // solstice_moon_rotation = rotationMatrix(2,6*Math.PI/180)
-    // moon2 = math.multiply(solstice_moon_rotation,moon)
-    // a = 6*Math.PI/180
-    // moon = [math.cos(a)*x+math.sin(a)*y,math.cos(a)*y-math.sin(a)*x,z]
-
-    ctx.fillText('r1: ' +  moon ,10,180 )
-    // rotate moon by 23.44 deg due to tilt
+    // Starting with polar tilt 23.44 deg
+    earth_tilt = new quat()
     a = -23.44*Math.PI/180
-    x = moon[0]
-    y = moon[1]
-    z = moon[2]
-    moon = [math.cos(a)*x+math.sin(a)*z,y,math.cos(a)*z-math.sin(a)*x]
+    earth_tilt.angle_axis(a,0,1,0)
 
-    // rotate around z axis by < 1 day to align moon at 0 deg longitude
-    // on oct 27
+    moon_v = earth_tilt.rotate(moon_v)
+
+    // Day rotation 1 rot/ sidereal day
     a = 2*Math.PI*days_since
-    x = moon[0]
-    y = moon[1]
-    z = moon[2]
-    moon = [math.cos(a)*x+math.sin(a)*y,math.cos(a)*y-math.sin(a)*x,z]
 
-    // rotate by day around y axis
-    console.log(moon[0],moon[1])
-    long = Math.atan2(moon[1],moon[0])*180/Math.PI
-    lat = Math.atan2(moon[2],Math.sqrt(moon[1]*moon[1]+moon[0]*moon[0]))*180/Math.PI
+    dayrot = new quat()
+    dayrot.angle_axis(-a,0,0,1)
+    moon_v = dayrot.rotate(moon_v)
+    return moon_v
+}
+
+function draw_moon(selected_date){
+    
+    moon_v = get_moon_pos_rel_earth(selected_date)
+
+    draw_obj(moon_v)
+}
+
+function draw_obj(moon_v)
+{
+    long = Math.atan2(moon_v.y,moon_v.x)*180/Math.PI
+    lat = Math.atan2(moon_v.z,Math.sqrt(moon_v.y*moon_v.y+moon_v.x*moon_v.x))*180/Math.PI
     ctx.fillText('long lat: ' +  long +','+lat  ,10,220 )
 
     ctx.fill()
     ctx.stroke()
 
     place = [long/180*canvas.height+canvas.width/2,-lat/180*canvas.height+canvas.height/2]
-    console.log(place)
+    //console.log(place)
 
     ctx.beginPath();
     ctx.arc( place[0],place[1], 10, 0, 2 * Math.PI);
@@ -202,86 +236,70 @@ function draw_moon(){
     ctx.fill()
     ctx.stroke()
 }
+const goal_angle_to_orbital_pos = (goal_angle) => {
+    const f1 = new vec3(-783.79 / 2, 0);
+    const f2 = new vec3(783.79 / 2, 0);
+    let a = 23455;
+    let c = Math.abs(f1.x - f2.x) / 2;
+    let b = Math.sqrt(a * a - c * c);
+    goal_angle += + Math.PI
+    let angle = goal_angle;
+    let M = goal_angle - 0.0167086 * Math.sin(goal_angle - Math.PI);
+    let goal_dif = M - goal_angle;
 
-function draw_sun(){
-    now = new Date();
-    minute = (hourSlider.value - Math.floor(hourSlider.value))*60
+    for (let n = 0; n < 10; n += 1) {
+        angle += goal_dif;
+        M = angle - 0.0167086 * Math.sin(angle - Math.PI);
+        goal_dif = goal_angle - M;
+    }
+    console.log('a b  ', a, b)
 
-    selected_date = new Date(now.getFullYear(), 0, daySlider.value,hourSlider.value,minute);
-    thisyear = new Date(2026, 0, 1);
-    //ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'white'
-    const October27 = new Date(2026, 11, 21, 15, 49, 0);
-    ctx.fillText('OCT 27: ' + October27.toString(),10,60 )
+    p = new vec3(Math.cos(angle) * a, Math.sin(angle) * b);
+    return f1.subtract(p);
+}
 
-    time_since_oct27 = selected_date.valueOf() - October27.valueOf()
-    ctx.fillText('ms Since OCT 27: ' + time_since_oct27,10,80 )
-
-    days_since = time_since_oct27/(86160000.)
-    months_since = time_since_oct27/(60*60*1000*24*365.25)
-    ctx.fillText('"Months" Since OCT 27: ' + months_since,10,100 )
-
-
-    month_angle = months_since * 2. * Math.PI
-    ctx.fillText('angle: ' +  month_angle%(2 * Math.PI) ,10,120 )
-
+function get_sun_pos_rel_earth(selected_date)
+{
+    
     distance_between_foci = 152.10*10**6 - 147.10*10**6
     x = (152.10*10**6 + 147.10*10**6)/2*Math.cos(month_angle) - distance_between_foci/2
     y = 149.577*10**6*Math.sin(month_angle)
 
-    ctx.fillText('coordinates: ' +  x.toString()+','+y.toString()  ,10,140 )
+    const midnight_jan1 = new Date("1 Jan 2026 00:00:00 GMT");
+    const time_since_jan1 = selected_date.valueOf() - midnight_jan1.valueOf()
 
-    //moon_orbit_to_ecliptic = (5.15)*Math.PI/180
-    //z = x*Math.sin(moon_orbit_to_ecliptic)
-    //x = x*Math.cos(moon_orbit_to_ecliptic)
-    z=0
-    ctx.fillText('coordinates: ' +  x.toString()+','+y.toString()+','+z.toString()  ,10,160 )
+    const years_since_jan1 = time_since_jan1/(60*60*24*365.25*1000)
 
-    // rotate moon around z axis by roughly 6 deg 
-    // as moon is misaligned with solstice/earth tilt
+    yearangle = years_since_jan1 * 2 * Math.PI
 
-    moon = [x,y,z]
-    // solstice_moon_rotation = rotationMatrix(2,6*Math.PI/180)
-    // moon2 = math.multiply(solstice_moon_rotation,moon)
-    // a = 6*Math.PI/180
-    // moon = [math.cos(a)*x+math.sin(a)*y,math.cos(a)*y-math.sin(a)*x,z]
+    var PP = goal_angle_to_orbital_pos(yearangle)
+    console.log(PP.mult(6371))
+    sun_v = PP.mult(6371)
 
-    ctx.fillText('r1: ' +  moon ,10,180 )
-    // rotate moon by 23.44 deg due to tilt
+    // INTO EARTH SPACE
+
+    // Starting with polar tilt 23.44 deg
+    earth_tilt = new quat()
     a = -23.44*Math.PI/180
-    x = moon[0]
-    y = moon[1]
-    z = moon[2]
-    moon = [math.cos(a)*x+math.sin(a)*z,y,math.cos(a)*z-math.sin(a)*x]
+    earth_tilt.angle_axis(a,0,1,0)
 
-    // rotate around z axis by < 1 day to align moon at 0 deg longitude
-    // on oct 27
+    sun_v = earth_tilt.rotate(sun_v)
+
+    // Day rotation 1 rot/ sidereal day
     a = 2*Math.PI*days_since
-    x = moon[0]
-    y = moon[1]
-    z = moon[2]
-    moon = [math.cos(a)*x+math.sin(a)*y,math.cos(a)*y-math.sin(a)*x,z]
 
-    // rotate by day around y axis
-    console.log(moon[0],moon[1])
-    long = Math.atan2(moon[1],moon[0])*180/Math.PI
-    lat = Math.atan2(moon[2],Math.sqrt(moon[1]*moon[1]+moon[0]*moon[0]))*180/Math.PI
-    ctx.fillText('long lat: ' +  long +','+lat  ,10,220 )
+    dayrot = new quat()
+    dayrot.angle_axis(-a,0,0,1)
+    sun_v = dayrot.rotate(sun_v)
+    return sun_v
+}
 
-    ctx.fill()
-    ctx.stroke()
+function draw_sun(selected_date){
+    
+    sun_v = get_sun_pos_rel_earth(selected_date)
 
-    place = [long/180*canvas.height+canvas.width/2,-lat/180*canvas.height+canvas.height/2]
-    console.log(place)
-
-    ctx.beginPath();
-    ctx.arc( place[0],place[1], 10, 0, 2 * Math.PI);
-    ctx.fillStyle = 'yellow'
-    ctx.fill()
-    ctx.stroke()
-    ctx.fillStyle = 'red'
-    ctx.font = "18px Arial";
-    ctx.fillText('Month' + days_since  ,10,240 )
+    draw_obj(sun_v)
+    console.log(x,y)
 }
 
 async function update() {
@@ -293,13 +311,24 @@ async function update() {
 
     ctx.fillStyle = "white";
     ctx.strokeStyle = "black";
-    console.log( daySlider.value)
+    //console.log( daySlider.value)
     ctx.fillText( daySlider.value,10,20 )
 
+
+    minute = (hourSlider.value - Math.floor(hourSlider.value))*60
+    now = new Date()
+    selected_date = new Date(now.getFullYear(), 0, daySlider.value,hourSlider.value,minute);
+    thisyear = new Date(2026, 0, 1);
+
+    ctx.fillText('Selected: ' + selected_date.toString(),10,40 )
+    ctx.fillStyle = 'red'
+    ctx.font = "18px Arial";
+    ctx.fillText('UTC: ' + selected_date.getUTCHours()+':'+ selected_date.getUTCMinutes() ,390,40 )
+    ctx.fillStyle = 'white'
+    ctx.font = "12px Arial";
     
-    
-    draw_moon()
-    draw_sun()
+    draw_moon(selected_date)
+    draw_sun(selected_date)
 
 
 
