@@ -19,6 +19,9 @@ canvas {
     margin-top: 30px;
     border: 1px solid #444;
 }
+.slider {
+    width: '1000';
+}
 </style>
 </head>
 <body>
@@ -39,9 +42,10 @@ canvas {
         <input type="text" id="hour-value" value="0">
     </div>
     angle
-    <input type="range" min="0" max="6.3" value="0" step = '.001' width = "100" class="slider-input" id="angle-slider">
-<input type="range" min="0" max="6.3" value="0" step = '.001' width = "100" class="slider-input" id="angle-slider2">
-<input type="range" min="0" max="6.3" value="0" step = '.001' width = "100" class="slider-input" id="angle-slider3">
+    <input type="range" min="0" max="6.3" value="6.185" step = '.001' width = "100" class="slider-input" style="width: 1500px;" id="angle-slider">
+<input type="range" min="0" max="6.3" value="0.506" step = '.001' width = 50px; class="slider-input"  style="width: 1500px;" id="angle-slider2">
+<input type="range" min="0" max="6.3" value="5.858" step = '.001' width = "500" style="width: 1500px;" class="slider-input" id="angle-slider3">
+<input type="range" min="0" max="6.3" value="6.266" step = '.001' width = "500" style="width: 1500px;" class="slider-input" id="angle-slider4">
         <div class="button-group">
   <button type="button" id="day-up">day up</button>
   <button type="button" id="day-down">day down</button>
@@ -68,6 +72,7 @@ const yearValue = document.getElementById('year-value');
 const angleSlider= document.getElementById('angle-slider');
 const angleSlider2= document.getElementById('angle-slider2');
 const angleSlider3= document.getElementById('angle-slider3');
+const angleSlider4= document.getElementById('angle-slider4');
 const todayButton =  document.getElementById('today-button');
 const eclipseButton =  document.getElementById('eclipse-button');
 const eclipseButton2 =  document.getElementById('eclipse-button2');
@@ -79,11 +84,7 @@ const daydownButton =  document.getElementById('day-down');
 const minuteupButton =  document.getElementById('minute-up');
 const minutedownButton =  document.getElementById('minute-down');
 
-angleSlider.value = 4.024 
-angleSlider2.value = 0.348
 
-angleSlider.value = 4.078
-angleSlider2.value = 0.33
 
 factora = 0// 6.1999999999999975
 factorb = 0// 0.03
@@ -98,6 +99,9 @@ angleSlider2.addEventListener('input', () => {
     updatePoint();
 });
 angleSlider3.addEventListener('input', () => {
+    updatePoint();
+});
+angleSlider4.addEventListener('input', () => {
     updatePoint();
 });
 daySlider.addEventListener('input', () => {
@@ -445,6 +449,35 @@ known = [
 [2028,366,23,59,22.3168,3.4196]
 ]
 
+const ecliptic_crossings = [
+[2026,7,11,13,"Descending",159.45],
+[2026,21,23,48,"Ascending",-21.93],
+[2026,34,17,24,"Descending",159.61],
+[2026,49,7,39,"Ascending",-22.75],
+[2026,62,2,30,"Descending",160.62],
+[2026,76,17,5,"Ascending",-21.83],
+[2026,89,11,9,"Descending",160.47],
+[2026,104,0,36,"Ascending",-21.12],
+[2026,116,16,21,"Descending",157.88],
+[2026,131,3,55,"Ascending",-22.42],
+[2026,143,17,31,"Descending",153.36],
+[2026,158,4,35,"Ascending",-25.75],
+[2026,170,18,24,"Descending",149.6],
+[2026,185,6,50,"Ascending",-29.18],
+[2026,197,23,26,"Descending",148.93],
+[2026,212,12,44,"Ascending",-31.14],
+[2026,225,8,40,"Descending",150.59],
+[2026,239,20,54,"Ascending",-31.58],
+[2026,252,18,50,"Descending",152.06],
+[2026,267,4,25,"Ascending",-31.46],
+[2026,280,2,11,"Descending",150.97],
+[2026,294,8,49,"Ascending",-32.1],
+[2026,307,4,43,"Descending",146.56],
+[2026,321,10,15,"Ascending",-34.06],
+[2026,334,4,53,"Descending",141.17],
+[2026,348,11,49,"Ascending",-36.65],
+[2026,361,8,12,"Descending",138.62]]
+
 
 const img = new Image();
 img.src = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Equirectangular-projection.jpg";
@@ -493,6 +526,9 @@ class vec3 {
 
     return acos(ratio)
   }
+  mag(){
+    return sqrt(this.dot(this))
+  }
 }
 
 class quat {
@@ -540,7 +576,8 @@ const ctx = canvas.getContext("2d");
 
 
 
-function get_moon_pos_rel_earth(selected_date, debug = false){
+function get_moon_pos_rel_earth(selected_date, debug = false)
+{
     // this day the moon was futhest from ecliptic and at apogee -spelling
     // this time moon should be at 0deg long
     const October27 = new Date("Wed, 28 Oct 2026 01:20:00 GMT");
@@ -557,11 +594,15 @@ function get_moon_pos_rel_earth(selected_date, debug = false){
     //Moon position in orbit***************************
     month_angle = months_since * 2. * Math.PI + procession_angle2 + parseFloat(angleSlider3.value)
     moon_v = goal_angle_to_moon(month_angle + factora)
+    if (debug){console.log(moon_v.mag()- 405507,moon_v.mag()  - 363300)
+        console.log(angleSlider.value, angleSlider2.value,angleSlider3.value, angleSlider4.value)
+    }
 
 
     
     glup = new quat()
-    glup.angle_axis(factorb - procession_angle2 - parseFloat(angleSlider3.value),0,0,1)
+    //console.log( procession_angle2 - parseFloat(angleSlider3.value))
+    glup.angle_axis(- procession_angle2 - parseFloat(angleSlider3.value),0,0,1)
     moon_v = glup.rotate(moon_v)
 
 
@@ -570,13 +611,11 @@ function get_moon_pos_rel_earth(selected_date, debug = false){
     procession_angle = time_since_oct27/(60*60*1000*24*6793.) * 2 * Math.PI 
     
     // console.log(procession_angle, time_since_oct27, 60*60*1000*24*6793.,  2 * Math.PI)
-     if (debug){
-        console.log(parseFloat(angleSlider.value)-procession_angle)
-     }
+
     /// inclination axis debugging step
     inclination_axis = new vec3(0,1,0)
     glup = new quat()
-    glup.angle_axis(parseFloat(angleSlider.value)-procession_angle,0,0,1)
+    glup.angle_axis(Math.PI + parseFloat(angleSlider.value)-procession_angle,0,0,1)
     inclination_axis = glup.rotate(inclination_axis)
     // end debugging
 
@@ -605,10 +644,12 @@ function get_moon_pos_rel_earth(selected_date, debug = false){
     moon_v = earth_tilt.rotate(moon_v)
 
     // Day rotation 1 rot/ sidereal day
-    a = 2*Math.PI*days_since-0.03572685558413854-.67/180*Math.PI 
+    a = 2*Math.PI*days_since-0.03572685558413854-3.67/180*Math.PI 
     dayrot = new quat()
-    dayrot.angle_axis(-a,0,0,1)
+    dayrot.angle_axis(-a + parseFloat(angleSlider4.value),0,0,1)
     moon_v = dayrot.rotate(moon_v)
+
+
     return moon_v
 }
 
@@ -789,7 +830,7 @@ async function update() {
     ctx.fillStyle = 'white'
     ctx.font = "12px Arial";
     sun = get_sun_pos_rel_earth(selected_date)
-    moon = get_moon_pos_rel_earth(selected_date)
+    moon = get_moon_pos_rel_earth(selected_date, true)
     
     ctx.fillText('angle ' + ( sun.angle_between(moon)*180/Math.PI ).toFixed(1),90,180 )
 
@@ -803,7 +844,10 @@ async function update() {
     
 
     ctx.stroke()
-    find_difference()
+    console.log('diff  ',find_difference())
+
+    ctx.fillText('Difference ' + find_difference(),80,400 )
+    // console.log('crossings dist ', find_difference_crossings())
 
     
 }
@@ -851,13 +895,16 @@ function find_difference()
 
         // console.log('nasa', Day[5],Day[4])
 
-        sum_lat += (lat - Day[4] )**2
-        sum_lon += (long - Day[5] )**2
-
+        sum_lat += ((lat) - (Day[4]))**2
+        
+        lon_diff = Math.min( Math.min(Math.abs((long) - (Day[5])), Math.abs((long) - (Day[5])-360)),Math.abs((long) - (Day[5])+360))
+        sum_lon += lon_diff **2
+        // console.log()
+        // console.log(long,Day[5],lon_diff)
     }
     // console.log(sum_lat**.5,sum_lon**.5)
 
-    return (sum_lat)**.5
+    return (sum_lon + sum_lat - 6693.911493566543)
 }
 
 // for (var day = 0; day < 365; day += 1)
@@ -885,104 +932,60 @@ best_angleSlider = angleSlider.value+0
 best_angleSlider2 = angleSlider2.value+0
 lowest_diff = find_difference()+5000000
 
-// B = 0.03
-// A = 3.75
-// for (var A = 0; A < 6.2; A += .1)
-// for (var B = 0; B < 6.2; B += .1)
+
+
+
+// A = 0
+// B = 0
+
+// C = angleSlider.value 
+// D = angleSlider2.value
+
+// D = .33
+
+// BestA = 0
+// BestB = 0
+
+// // D = 0.5
+// // C = 2.7
+// // B = 0
+// // A = 0
+
+// // C = 4.078
+// // D = 0.33
+// // F = 0
+
+// for (var A = 0; A < 6.2; A += 0.01)
+// // for (var B = 0; B < 6.1; B += 0.1)
+// // for (var C = 4.078; C < 6.2; C += .1)
+// // for (var D = 0.33; D < 6.2; D += .01)
+// // for (var F = 0; F < 6.2; F += 1)
 // {
-//      angleSlider.value = A
-//      angleSlider2.value = B
-//     if (find_difference()<lowest_diff){
-//         lowest_diff = find_difference()
-//         best_angleSlider = A
-//         best_angleSlider2 = B
-//         console.log(A, B, lowest_diff)
-//     }
-// }
-
-
-// angleSlider.value = best_angleSlider
-// angleSlider2.value = best_angleSlider2
-
-
-
-A = 0
-B = 0
-
-C = angleSlider.value 
-D = angleSlider2.value
-
-D = .33
-
-BestA = 0
-BestB = 0
-
-//5.799999999999995 0.48000000000000026
-
-// for (var A = 0; A < 6.2; A += 1)
-// for (var B = 0; B < 6.1; B += 1)
-// for (var C = 0; C < 6.2; C += 1)
-// for (var D = 0; D < 6.2; D += 1)
-// for (var F = 0; F < 6.2; F += 1)
-// {
-//     factora = A
-//     factorb = B
-//     angleSlider.value = C
-//     angleSlider2.value = D
-//     angleSlider3.value = F
+//     // factora = A
+//     // factorb = B
+//     // angleSlider.value = C
+//     angleSlider2.value = A
+//     angleSlider3.value = B
 //     if (find_difference()<lowest_diff){
 //         lowest_diff = find_difference()
 //         // best_angleSlider = C
-//         // best_angleSlider2 = D
-//         console.log(A, B, C, D, F, lowest_diff)
+//         best_angleSlider2 = A
+//         best_angleSlider3 = B
+//         console.log(A, B,  lowest_diff)
 //         bestA = A+0
 //         bestB = B+0
 //     }
 // }
 
-// D = 0.5
-// C = 2.7
-// B = 0
-// A = 0
-
-// C = 4.078
-// D = 0.33
-// F = 0
-
-// // for (var A = 0; A < 6.2; A += 1)
-// // for (var B = 0; B < 6.1; B += 1)
-// for (var C = 4.078; C < 6.2; C += .1)
-// for (var D = 0.33; D < 6.2; D += .01)
-// // for (var F = 0; F < 6.2; F += 1)
-// {
-//     factora = A
-//     factorb = B
-//     angleSlider.value = C
-//     D = D
-//     angleSlider3.value = F
-//     if (find_difference()<lowest_diff){
-//         lowest_diff = find_difference()
-//         best_angleSlider = C
-//         best_angleSlider2 = D
-//         best_angleSlider3 = F
-//         console.log(A, B, C, D, F, lowest_diff)
-//         bestA = A+0
-//         bestB = B+0
-//     }
-// }
-
-// factora = bestA
-// factorb = bestB
-
-
-
-
-
-
-
-// angleSlider.value = best_angleSlider
 // angleSlider2.value = best_angleSlider2
 // angleSlider3.value = best_angleSlider3
+
+
+
+
+
+
+
 
 
 
@@ -991,12 +994,6 @@ BestB = 0
 // angleSlider2.value = 0.348 
  console.log(find_difference())
 
-// console.log(find_difference(), angleSlider.value, angleSlider2.value)
-
-// angleSlider.value = 2.84
-// angleSlider2.value =0.56
-
-// console.log(find_difference(), angleSlider.value, angleSlider2.value)
 
 
 //best with negative precession is 53.5 distance
@@ -1009,6 +1006,35 @@ BestB = 0
 // a b c d = 0 0 2.800000000000001 0.6 66.59153527818702
 
 // 0 0 3 0.5 66.98288757040608
+
+
+// function find_difference_crossings()
+// {
+//     sum_lat = 0
+//     sum_lon = 0
+//     for (Day of ecliptic_crossings){
+
+//         selected_ms = Date.UTC(Day[0], 0, Day[1], Day[2])
+//         selected_date = new Date(selected_ms)
+//         // console.log(Day[0], 0, Day[1], Day[2], selected_date)
+//         moon_v = get_moon_pos_rel_earth(selected_date)
+
+//         long = Math.atan2(moon_v.y,moon_v.x)*180/Math.PI
+//         lat = Math.atan2(moon_v.z,Math.sqrt(moon_v.y*moon_v.y+moon_v.x*moon_v.x))*180/Math.PI
+
+//         // console.log( 'mine',long,lat)
+
+//         // console.log('nasa', Day[5],Day[4])
+
+//         sum_lat += (lat )**2
+//         //sum_lon += (long - Day[5] )**2
+
+//     }
+//     // console.log(sum_lat**.5,sum_lon**.5)
+
+//     return (sum_lat )**.5
+// }
+
 
 </script>
 </body>
